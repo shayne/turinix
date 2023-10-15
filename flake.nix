@@ -6,7 +6,7 @@
   };
   outputs = { self, nixpkgs, flake-utils, ... }@inputs:
     with flake-utils.lib;
-    eachSystem [ system.x86_64-linux system.aarch64-linux ]
+    eachSystem [ system.x86_64-linux system.aarch64-darwin ]
       (system:
         let
           pkgs = import nixpkgs { inherit system; };
@@ -14,7 +14,14 @@
         {
           devShells.default = pkgs.mkShell {
             buildInputs = with pkgs; [
-              pkgs.colmena
+              colmena
+              helmfile
+              kubectl
+              (wrapHelm kubernetes-helm {
+                plugins = [
+                  kubernetes-helmPlugins.helm-diff
+                ];
+              })
             ];
           };
 
@@ -30,20 +37,17 @@
         };
 
         defaults = ./common.nix;
-        kube1 = { services.k3s.clusterInit = true; };
-        kube2 = self.agent-role;
-        kube3 = self.agent-role;
+        kube1 = {
+          deployment.targetHost = "10.2.5.86";
+          services.k3s.clusterInit = true;
+        };
+        kube3 = { deployment.targetHost = "10.2.5.159"; } // self.agent-role;
+        kube2 = { deployment.targetHost = "10.2.5.203"; } // self.agent-role;
       };
 
       agent-role = {
         services.k3s = {
           serverAddr = "https://kube1:6443";
-          tokenFile = "/var/lib/rancher/k3s/server/token";
-        };
-
-        deployment.keys."token" = {
-          keyCommand = [ "pass" "k3s_token" ];
-          destDir = "/var/lib/rancher/k3s/server";
         };
       };
     };

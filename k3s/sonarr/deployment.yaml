@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarr
+spec:
+  selector:
+    matchLabels:
+      app: sonarr
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: sonarr
+    spec:
+      volumes:
+        - name: sonarr
+          persistentVolumeClaim:
+            claimName: longhorn-volv-pvc
+      containers:
+        - name: sonarr
+          image: linuxserver/sonarr
+          ports:
+            - containerPort: 8989
+          volumeMounts:
+            - name: sonarr
+              mountPath: /config
+              subPath: ''
+          resources:
+            limits:
+              # cpu: "1"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8989
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8989
+            initialDelaySeconds: 10

@@ -1,4 +1,4 @@
-{ pkgs, name, ... }:
+{ config, pkgs, name, ... }:
 {
   imports = [
     ./common-hardware.nix
@@ -13,7 +13,11 @@
   environment.systemPackages = with pkgs; [
     k3s
     libraspberrypi
+    lsscsi # not-currently-used
+    multipath-tools # not-currently-used
+    nfs-utils
     ookla-speedtest
+    openiscsi # not-currently-used
     raspberrypi-eeprom
     vim
   ];
@@ -21,6 +25,7 @@
   services.k3s = {
     enable = true;
     role = "server";
+    tokenFile = "/var/lib/rancher/k3s/server/token";
   };
 
   services.openssh.enable = true;
@@ -36,8 +41,33 @@
     ];
   };
 
+  # For Longhorn
+  system.activationScripts.usrlocalbin = ''
+    mkdir -m 0755 -p /usr/local
+    ln -nsf /run/current-system/sw/bin /usr/local/
+  '';
+  services.openiscsi = {
+    enable = true;
+    name = "iqn.2000-05.edu.example.iscsi:${config.networking.hostName}";
+  };
+
   services.tailscale.enable = true;
   services.tailscale.useRoutingFeatures = "both";
+
+  services.multipath = {
+    enable = true;
+    pathGroups = [ ];
+    defaults = ''
+      user_friendly_names yes
+      find_multipaths yes
+    '';
+  };
+
+
+  deployment.keys."token" = {
+    keyCommand = [ "pass" "k3s_token" ];
+    destDir = "/var/lib/rancher/k3s/server";
+  };
 
   system.stateVersion = "23.11";
 }
